@@ -37,8 +37,9 @@ def build_array(rawstats):
             titles = values
             titles[0] = titles[0][2:]  # remove the '# ' from the first element
             continue
-
+        
         stats.append(dict(zip(titles,values)))  # create the dict containing our results
+
 
     return stats
 
@@ -50,13 +51,22 @@ def run_checks(servers):
     for server in servers:
         server['fullname'] = server['pxname'] + "/" + server['svname']  # Combine 'svname' and 'pxname' to get a unique name
 
+
         # Define some variables before use
         result=""           # The complete set of results for each server's checks
         allperf=""          # The complete set of all performance data for a server
         alert_warn=False    # Flag set if  check makes a server WARN
         alert_crit=False    #   "   "   "   "   "   "   "   "   CRIT
+        if(server['slim'] != ''):
+            warn = int(server['slim'])-50
+            crit = int(server['slim'])
+        else:
+            warn = 0
+            crit = 0
 
-        for check,warn,crit in checks:
+        for check in checks:
+
+
             output=""
             perfdata=""
 
@@ -78,16 +88,21 @@ def run_checks(servers):
             # Generic check for the other fields which are numeric
             # Make sure int() is used when needed!
             else:
-                if int(server[check]) >= int(warn) and int(server[check]) < int(crit):
-                    output += check + " WARN " + server[check] + ", "
-                    alert_warn = True
-                if int(server[check]) >= int(crit):
-                    output += check + " CRIT " + server[check] + ", "
-                    alert_crit = True
+                if warn == 0 and crit == 0:
+                    alert_crit = False
+                    alert_warn = False
+                    output += check + " OK " + server[check] + ", "
+                else:
+                    if int(server[check]) >= int(warn) and int(server[check]) < int(crit):
+                        output += check + " WARN " + server[check] + ", "
+                        alert_warn = True
+                    if int(server[check]) >= int(crit):
+                        output += check + " CRIT " + server[check] + ", "
+                        alert_crit = True
                 #if server[check] < warn:          # Disabled so OK doesn't give out stats 
                     #output += "| " + check + " OK " + server[check]
 
-                perfdata += check + "=" + server[check] + ";" + warn + ";" + crit
+                perfdata += check + "=" + server[check] + ";" + str(warn) + ";" + str(crit)
 
             # Build the output performance data, putting | in the right places
             if allperf == "":
@@ -142,7 +157,7 @@ class HAProxyStats(object):
 
 if __name__ == "__main__":
 
-    socketfile = "/var/run/haproxy.socket"
+    socketfile = "/var/lib/haproxy/stats"
 
     if not os.path.exists(socketfile):
             print "Socket does not exist"
